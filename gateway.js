@@ -11,12 +11,12 @@ const protoLoader = require('@grpc/proto-loader');
 const path = require('path');
 
 // ─── Inisialisasi gRPC Client ────────────────────────────────
-const packageDefinition = protoLoader.loadSync('lelang.proto', { keepCase: true });
+const packageDefinition = protoLoader.loadSync(path.join(__dirname, 'lelang.proto'), { keepCase: true });
 const lelangProto = grpc.loadPackageDefinition(packageDefinition).lelang;
 
-const userClient   = new lelangProto.UserService('127.0.0.1:50051', grpc.credentials.createInsecure());
-const roomClient   = new lelangProto.RoomService('127.0.0.1:50051', grpc.credentials.createInsecure());
-const biddingClient = new lelangProto.BiddingService('127.0.0.1:50051', grpc.credentials.createInsecure());
+const userClient   = new lelangProto.UserService('127.0.0.1:50052', grpc.credentials.createInsecure());
+const roomClient   = new lelangProto.RoomService('127.0.0.1:50052', grpc.credentials.createInsecure());
+const biddingClient = new lelangProto.BiddingService('127.0.0.1:50052', grpc.credentials.createInsecure());
 
 // ─── Inisialisasi Express + HTTP + Socket.IO ─────────────────
 const app    = express();
@@ -170,7 +170,7 @@ server.listen(GATEWAY_PORT, () => {
   console.log('╔══════════════════════════════════════════════════╗');
   console.log('║   🌐  GATEWAY BALAI LELANG BERJALAN              ║');
   console.log(`║   → Web UI  : http://localhost:${GATEWAY_PORT}              ║`);
-  console.log('║   → gRPC    : 127.0.0.1:50051                    ║');
+  console.log('║   → gRPC    : 127.0.0.1:50052                    ║');
   console.log('╚══════════════════════════════════════════════════╝');
   console.log('');
   gwLog('SYSTEM', 'Gateway siap. Pastikan server.js sudah berjalan terlebih dahulu.');

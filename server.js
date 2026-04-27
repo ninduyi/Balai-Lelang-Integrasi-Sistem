@@ -357,19 +357,17 @@ function main() {
     JoinRoomBidding: joinRoomBidding,
   });
 
-  const addr = '0.0.0.0:50051';
+  const addr = '0.0.0.0:50052';
   server.bindAsync(addr, grpc.ServerCredentials.createInsecure(), (err) => {
     if (err) {
       console.error('[SRV:ERR] Gagal bind server:', err.message);
       return;
     }
 
-    server.start();
-
     console.log('');
     console.log('╔══════════════════════════════════════════════════╗');
     console.log('║   🚀 gRPC SERVER BALAI LELANG BERJALAN          ║');
-    console.log('║   → Bind    : 0.0.0.0:50051                     ║');
+    console.log('║   → Bind    : 0.0.0.0:50052                     ║');
     console.log(`║   → AutoClose Room : ${ROOM_AUTO_CLOSE_MS / 1000}s                      ║`);
     console.log('╚══════════════════════════════════════════════════╝');
     console.log('');
