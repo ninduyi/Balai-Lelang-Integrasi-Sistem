@@ -4,8 +4,8 @@
 
 ```
 project/
-├── server.js        ← gRPC Server (TIDAK DIUBAH)
-├── lelang.proto     ← Proto definition (TIDAK DIUBAH)
+├── server.js        ← gRPC Server 
+├── lelang.proto     ← Proto definition
 ├── gateway.js       ← 🆕 Express + Socket.IO bridge ke gRPC
 ├── index.html       ← 🆕 Web UI (HTML/CSS/Vanilla JS)
 └── README.md
