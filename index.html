@@ -1,0 +1,1509 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Balai Lelang Eksekutif — Live Bidding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700;800;900&display=swap" rel="stylesheet">
+<script src="/socket.io/socket.io.js"></script>
+<style>
+/* ============ DESIGN SYSTEM ============ */
+:root{
+  --bg: hsl(30 18% 7%);
+  --fg: hsl(40 35% 92%);
+  --card: hsl(28 20% 10%);
+  --card-2: hsl(28 22% 11%);
+  --muted: hsl(28 15% 14%);
+  --muted-fg: hsl(38 15% 62%);
+  --secondary: hsl(28 22% 16%);
+  --border: hsl(36 22% 20%);
+  --input: hsl(30 18% 14%);
+  --primary: hsl(42 78% 58%);
+  --primary-glow: hsl(45 95% 70%);
+  --primary-deep: hsl(36 65% 42%);
+  --primary-fg: hsl(28 35% 8%);
+  --success: hsl(142 60% 48%);
+  --destructive: hsl(0 75% 55%);
+  --gradient-gold: linear-gradient(135deg, hsl(45 95% 70%), hsl(42 78% 58%) 45%, hsl(36 65% 42%));
+  --gradient-gold-soft: linear-gradient(135deg, hsl(42 78% 58% / .15), hsl(36 65% 42% / .05));
+  --gradient-surface: linear-gradient(180deg, hsl(28 22% 11%), hsl(28 20% 8%));
+  --shadow-gold: 0 10px 40px -10px hsl(42 78% 58% / .45);
+  --shadow-gold-sm: 0 4px 18px -6px hsl(42 78% 58% / .4);
+  --shadow-gold-xl: 0 30px 90px -15px hsl(42 78% 58% / .6);
+  --shadow-elegant: 0 20px 60px -20px hsl(0 0% 0% / .6);
+  --radius: 14px;
+  --ease: cubic-bezier(.22,1,.36,1);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, hsl(42 78% 58% / .12), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 90% 100%, hsl(36 65% 42% / .08), transparent 60%);
+  background-attachment: fixed;
+  min-height:100vh;
+  font-size:14px;
+  line-height:1.5;
+}
+::selection{background:hsl(42 78% 58% / .35);color:var(--fg)}
+.font-display{font-family:'Playfair Display',serif;letter-spacing:-.02em}
+.text-gradient-gold{background:var(--gradient-gold);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+.container{max-width:1180px;margin:0 auto;padding:0 24px}
+
+/* ============ HEADER ============ */
+.header{
+  position:relative;
+  border-bottom:1px solid hsl(36 22% 20% / .6);
+  background:var(--gradient-surface);
+  backdrop-filter:blur(8px);
+}
+.header::before{content:'';position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,hsl(42 78% 58% / .6),transparent)}
+.header-inner{display:flex;align-items:center;justify-content:space-between;padding:20px 0}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-logo{
+  width:44px;height:44px;border-radius:12px;
+  background:var(--gradient-gold);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow-gold-sm);position:relative;
+}
+.brand-logo svg{width:22px;height:22px;color:var(--primary-fg)}
+.brand-logo .spark{position:absolute;top:-4px;right:-4px;width:12px;height:12px;color:var(--primary-glow);animation:pulse 2s infinite}
+.brand h1{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;line-height:1}
+.brand h1 .e{color:var(--fg)}
+.brand p{margin-top:4px;font-size:11px;text-transform:uppercase;letter-spacing:.2em;color:var(--muted-fg)}
+.user-chip{display:flex;align-items:center;gap:12px}
+.user-info{text-align:right}
+.user-info .n{font-size:13px;font-weight:600}
+.user-info .i{font-size:11px;color:var(--muted-fg)}
+.avatar{
+  width:40px;height:40px;border-radius:50%;
+  background:var(--secondary);color:var(--primary);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:600;
+  box-shadow:0 0 0 1px hsl(42 78% 58% / .4), inset 0 1px 0 0 hsl(42 78% 70% / .15);
+}
+.btn-logout{
+  background:hsl(28 22% 16% / .5);border:1px solid var(--border);
+  color:var(--muted-fg);padding:8px 12px;border-radius:8px;font-size:12px;
+  cursor:pointer;font-weight:500;transition:all .25s var(--ease);
+}
+.btn-logout:hover{border-color:hsl(42 78% 58% / .4);color:var(--primary)}
+
+/* ============ BUTTONS / INPUTS ============ */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:0 18px;height:44px;border-radius:10px;
+  font-weight:600;font-size:14px;cursor:pointer;border:none;
+  transition:all .25s var(--ease);font-family:inherit;
+}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-gold{background:var(--gradient-gold);color:var(--primary-fg);box-shadow:var(--shadow-gold-sm)}
+.btn-gold:hover:not(:disabled){box-shadow:var(--shadow-gold);transform:translateY(-1px)}
+.btn-outline{
+  background:hsl(28 22% 16% / .5);
+  border:1px solid hsl(42 78% 58% / .4);
+  color:var(--primary);
+}
+.btn-outline:hover:not(:disabled){background:hsl(42 78% 58% / .1)}
+.btn-ghost{background:transparent;color:var(--muted-fg);border:1px solid var(--border)}
+.btn-ghost:hover{color:var(--primary);border-color:hsl(42 78% 58% / .4)}
+.btn-sm{height:36px;padding:0 14px;font-size:13px}
+.btn-lg{height:52px;padding:0 24px;font-size:15px}
+.input{
+  width:100%;height:46px;padding:0 14px;border-radius:10px;
+  background:hsl(30 18% 14% / .6);border:1px solid var(--border);
+  color:var(--fg);font-family:inherit;font-size:15px;outline:none;
+  transition:border-color .2s var(--ease), box-shadow .2s var(--ease);
+}
+.input:focus{border-color:var(--primary);box-shadow:0 0 0 3px hsl(42 78% 58% / .15)}
+.input.mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;font-size:18px}
+.label{display:block;margin-bottom:8px;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg)}
+
+/* ============ REGISTER ============ */
+.register-wrap{display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 100px);padding:40px 0}
+.register{position:relative;width:100%;max-width:420px}
+.register::before{
+  content:'';position:absolute;inset:-4px;border-radius:24px;
+  background:var(--gradient-gold);opacity:.2;filter:blur(40px);z-index:-1;
+}
+.register-card{
+  position:relative;border-radius:20px;border:1px solid var(--border);
+  background:var(--gradient-surface);padding:36px;
+  box-shadow:var(--shadow-elegant);overflow:hidden;
+}
+.register-card::before{content:'';position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,var(--primary),transparent)}
+.register-icon{
+  margin:0 auto 20px;width:64px;height:64px;border-radius:18px;
+  background:var(--gradient-gold);display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow-gold);animation:pulse-gold 2s infinite;
+}
+.register-icon svg{width:32px;height:32px;color:var(--primary-fg)}
+.register h2{font-family:'Playfair Display',serif;font-size:30px;font-weight:700;text-align:center}
+.register .sub{margin-top:8px;text-align:center;color:var(--muted-fg);font-size:14px}
+.register form{margin-top:28px;display:flex;flex-direction:column;gap:16px}
+.register .footer-note{margin-top:20px;text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.2em;color:var(--muted-fg)}
+
+/* ============ HERO ============ */
+.hero{
+  margin-bottom:32px;padding:24px;border-radius:18px;
+  border:1px solid var(--border);background:var(--gradient-surface);
+  box-shadow:var(--shadow-elegant);
+  display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:center;
+}
+.hero .tag{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.25em;color:var(--primary)}
+.hero h2{margin-top:8px;font-family:'Playfair Display',serif;font-size:28px;font-weight:700}
+.hero p{margin-top:4px;font-size:14px;color:var(--muted-fg)}
+.stats{display:flex;gap:12px}
+.stat{
+  border:1px solid var(--border);background:hsl(28 20% 10% / .6);
+  border-radius:12px;padding:12px 18px;text-align:center;min-width:90px;
+}
+.stat .v{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;background:var(--gradient-gold);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.stat .l{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg)}
+
+/* ============ MENU TILES ============ */
+.menu-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin-bottom:28px}
+.tile{
+  position:relative;overflow:hidden;
+  display:flex;flex-direction:column;gap:12px;text-align:left;
+  width:100%;padding:20px;border-radius:18px;
+  border:1px solid var(--border);background:var(--gradient-surface);
+  cursor:pointer;font-family:inherit;color:inherit;
+  transition:all .3s var(--ease);
+}
+.tile:hover{transform:translateY(-2px);border-color:hsl(42 78% 58% / .4);box-shadow:var(--shadow-gold-sm)}
+.tile.active{border-color:hsl(42 78% 58% / .6);box-shadow:var(--shadow-gold-sm), 0 0 0 1px hsl(42 78% 58% / .4)}
+.tile::after{
+  content:'';position:absolute;top:-50px;right:-50px;width:160px;height:160px;border-radius:50%;
+  background:hsl(42 78% 58% / .1);filter:blur(50px);opacity:0;transition:opacity .5s;
+}
+.tile:hover::after{opacity:1}
+.tile-head{display:flex;justify-content:space-between;align-items:flex-start}
+.tile-icon{
+  width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+  background:var(--secondary);color:var(--primary);transition:all .3s var(--ease);
+}
+.tile-icon svg{width:20px;height:20px}
+.tile-icon.gold{background:var(--gradient-gold);color:var(--primary-fg);box-shadow:var(--shadow-gold-sm)}
+.tile-badge{
+  font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;
+  background:hsl(42 78% 58% / .1);color:var(--primary);border:1px solid hsl(42 78% 58% / .3);
+}
+.tile h3{font-family:'Playfair Display',serif;font-size:18px;font-weight:600}
+.tile .d{font-size:13px;color:var(--muted-fg);margin-top:4px;line-height:1.5}
+.tile .open{
+  margin-top:auto;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;
+  color:var(--primary);opacity:0;transition:opacity .3s;
+}
+.tile:hover .open{opacity:1}
+
+/* ============ PANELS ============ */
+.panel{
+  border-radius:18px;border:1px solid var(--border);background:var(--gradient-surface);
+  box-shadow:var(--shadow-elegant);overflow:hidden;
+}
+.panel-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 24px;border-bottom:1px solid hsl(36 22% 20% / .6);
+  gap:12px;flex-wrap:wrap;
+}
+.panel-head .left{display:flex;align-items:center;gap:12px}
+.panel-icon{
+  width:40px;height:40px;border-radius:12px;
+  background:hsl(42 78% 58% / .15);color:var(--primary);
+  display:flex;align-items:center;justify-content:center;
+}
+.panel-icon svg{width:20px;height:20px}
+.panel-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:600}
+.panel-sub{font-size:11px;color:var(--muted-fg);margin-top:2px;display:flex;align-items:center;gap:6px}
+.dot-online{width:6px;height:6px;border-radius:50%;background:var(--success)}
+
+/* ============ PARTICIPANTS ============ */
+.participant{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 24px;border-bottom:1px solid hsl(36 22% 20% / .4);
+  transition:background-color .2s;
+  animation:fade-in .35s var(--ease) both;
+}
+.participant:hover{background:hsl(28 22% 16% / .4)}
+.participant:last-child{border-bottom:none}
+.p-left{display:flex;align-items:center;gap:12px}
+.p-avatar{
+  position:relative;width:40px;height:40px;border-radius:50%;
+  background:var(--secondary);color:var(--primary);
+  display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;
+  border:1px solid var(--border);
+}
+.p-avatar.me{background:var(--gradient-gold);color:var(--primary-fg);border:none;box-shadow:var(--shadow-gold-sm)}
+.p-avatar .live-dot{
+  position:absolute;bottom:-2px;right:-2px;width:10px;height:10px;border-radius:50%;
+  background:var(--success);box-shadow:0 0 0 2px var(--bg);
+}
+.p-name{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+.p-id{font-size:12px;color:var(--muted-fg)}
+.tag-me{
+  font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+  background:hsl(42 78% 58% / .15);color:var(--primary);padding:2px 8px;border-radius:999px;
+}
+.empty{padding:48px 24px;text-align:center;color:var(--muted-fg);font-size:13px}
+.panel-foot{padding:12px 24px;font-size:12px;color:var(--muted-fg);background:hsl(28 22% 16% / .3);border-top:1px solid hsl(36 22% 20% / .6)}
+.panel-foot b{color:var(--fg)}
+
+/* shimmer skeleton */
+.skel{
+  height:56px;border-radius:12px;background:hsl(28 22% 16% / .5);
+  position:relative;overflow:hidden;margin:8px 24px;
+}
+.skel::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(110deg,transparent 30%,hsl(42 78% 58% / .18) 50%,transparent 70%);
+  transform:translateX(-100%);animation:shimmer 1.6s var(--ease) infinite;
+}
+
+/* ============ ROOMS ============ */
+.rooms-grid{display:grid;gap:14px;padding:20px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.room{
+  position:relative;overflow:hidden;
+  padding:16px;border-radius:14px;border:1px solid var(--border);
+  background:hsl(28 20% 10% / .6);transition:all .3s var(--ease);
+  animation:slide-up .45s var(--ease) both;
+}
+.room:hover{transform:translateY(-2px);border-color:hsl(42 78% 58% / .4);box-shadow:var(--shadow-gold-sm)}
+.room.closed{opacity:.55}
+.room-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.room-id{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.2em;color:var(--primary)}
+.room-name{margin-top:4px;font-family:'Playfair Display',serif;font-size:16px;font-weight:600;line-height:1.3}
+.badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:999px;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.badge-live{background:hsl(142 60% 48% / .15);color:var(--success)}
+.badge-live .pulse-dot{width:6px;height:6px;border-radius:50%;background:var(--success);animation:pulse 1.5s infinite}
+.badge-closed{background:hsl(0 75% 55% / .15);color:var(--destructive)}
+.room-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.room-stat{padding:10px;border-radius:10px;background:hsl(28 22% 16% / .4)}
+.room-stat .l{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-fg)}
+.room-stat .v{margin-top:2px;font-weight:600;font-size:13px}
+.room-stat.price .v{color:var(--primary)}
+.room .btn{width:100%;margin-top:14px;height:38px;background:var(--secondary);color:var(--fg)}
+.room .btn:not(:disabled):hover{background:var(--primary);color:var(--primary-fg)}
+
+/* ============ BIDDING ROOM ============ */
+.bid-layout{display:grid;gap:20px;grid-template-columns:1fr 360px}
+@media(max-width:900px){.bid-layout{grid-template-columns:1fr}}
+.back-btn{display:inline-flex;align-items:center;gap:6px;background:transparent;border:none;color:var(--muted-fg);font-family:inherit;font-size:14px;cursor:pointer;padding:8px 0;margin-bottom:16px;transition:color .2s}
+.back-btn:hover{color:var(--primary)}
+
+/* === SPOTLIGHT: nama item & harga utama === */
+.bid-spotlight{
+  position:relative;padding:36px 28px 28px;text-align:center;overflow:hidden;
+  border-bottom:1px solid hsl(36 22% 20% / .6);
+  background:
+    radial-gradient(ellipse 70% 80% at 50% 0%, hsl(42 78% 58% / .18), transparent 60%),
+    var(--gradient-surface);
+}
+.bid-spotlight::before{
+  content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);
+  width:60%;height:1px;background:linear-gradient(90deg,transparent,var(--primary),transparent);
+}
+.bid-spotlight .id-line{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3em;color:var(--primary);
+  padding:4px 12px;border:1px solid hsl(42 78% 58% / .3);border-radius:999px;
+  background:hsl(42 78% 58% / .08);
+}
+.bid-spotlight h2{
+  margin-top:14px;
+  font-family:'Playfair Display',serif;font-size:36px;font-weight:800;line-height:1.15;
+  letter-spacing:-.02em;
+}
+@media(max-width:600px){.bid-spotlight h2{font-size:26px}}
+.bid-spotlight .price-block{
+  margin-top:24px;display:flex;flex-direction:column;align-items:center;gap:6px;
+}
+.bid-spotlight .price-label{
+  font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.25em;
+  color:var(--muted-fg);display:flex;align-items:center;gap:6px;
+}
+.bid-spotlight .price-label .pulse-dot{width:7px;height:7px;border-radius:50%;background:var(--success);animation:pulse 1.5s infinite}
+.bid-spotlight .price-main{
+  font-family:'Playfair Display',serif;font-weight:900;
+  font-size:56px;line-height:1;letter-spacing:-.03em;
+  background:var(--gradient-gold);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 4px 24px hsl(42 78% 58% / .35));
+  transition:transform .3s var(--ease);
+}
+@media(max-width:600px){.bid-spotlight .price-main{font-size:40px}}
+.bid-spotlight .price-main.pop{animation:price-pop .55s var(--ease)}
+.bid-spotlight .price-meta{
+  margin-top:10px;display:flex;flex-wrap:wrap;justify-content:center;gap:18px;
+  font-size:12px;color:var(--muted-fg);
+}
+.bid-spotlight .price-meta b{color:var(--fg);font-weight:600}
+.bid-spotlight .price-meta .up{color:var(--success);font-weight:600}
+
+.bid-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;padding:20px}
+@media(max-width:600px){.bid-stats{grid-template-columns:1fr}}
+.bid-stat{padding:14px;border-radius:12px;border:1px solid var(--border);background:var(--card)}
+.bid-stat .l{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg);display:flex;align-items:center;gap:4px}
+.bid-stat .v{margin-top:4px;font-weight:600;font-size:16px}
+.bid-stat.timer .v{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:22px;font-variant-numeric:tabular-nums}
+.bid-stat.timer.urgent{border-color:hsl(0 75% 55% / .5);background:hsl(0 75% 55% / .1)}
+.bid-stat.timer.urgent .l, .bid-stat.timer.urgent .v{color:var(--destructive)}
+.bid-stat.timer.urgent .v{animation:pulse 1s infinite}
+
+.winner-card{
+  margin:0 20px 20px;padding:14px;border-radius:12px;
+  border:1px solid hsl(42 78% 58% / .3);background:var(--gradient-gold-soft);
+  display:flex;align-items:center;gap:12px;
+}
+.crown{width:40px;height:40px;border-radius:50%;background:var(--gradient-gold);display:flex;align-items:center;justify-content:center;color:var(--primary-fg)}
+.winner-card .l{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted-fg)}
+.winner-card .n{font-family:'Playfair Display',serif;font-size:18px;font-weight:600}
+
+.bid-form{padding:20px 24px;border-top:1px solid hsl(36 22% 20% / .6);background:hsl(28 20% 10% / .4)}
+.bid-form .row{display:flex;gap:8px}
+.quick-bids{display:grid;gap:8px;margin-top:14px;grid-template-columns:repeat(2,1fr)}
+@media(min-width:600px){.quick-bids{grid-template-columns:repeat(4,1fr)}}
+.qb{
+  display:flex;flex-direction:column;align-items:flex-start;gap:2px;
+  background:hsl(28 22% 16% / .5);border:1px solid var(--border);color:var(--fg);
+  padding:10px 12px;border-radius:10px;cursor:pointer;font-family:inherit;
+  transition:all .2s var(--ease);text-align:left;
+}
+.qb:hover:not(:disabled){border-color:hsl(42 78% 58% / .5);background:hsl(42 78% 58% / .1);transform:translateY(-1px)}
+.qb:disabled{opacity:.4;cursor:not-allowed}
+.qb .pct{font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.05em}
+.qb .amt{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.qb .note{font-size:10px;color:var(--muted-fg)}
+
+.bid-log{max-height:760px;display:flex;flex-direction:column}
+.bid-log .head{padding:16px 20px;border-bottom:1px solid hsl(36 22% 20% / .6)}
+.bid-log .head h3{font-family:'Playfair Display',serif;font-size:16px;font-weight:600;display:flex;align-items:center;gap:6px}
+.bid-log .head svg{width:16px;height:16px;color:var(--primary)}
+.bid-log .head p{font-size:11px;color:var(--muted-fg);margin-top:2px}
+.bid-log .list{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px}
+.log-item{
+  padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:hsl(28 20% 10% / .6);
+  animation:fade-in .35s var(--ease);
+}
+.log-item.system{border-color:hsl(42 78% 58% / .3);background:hsl(42 78% 58% / .05);font-size:12px;color:var(--primary);font-weight:500}
+.log-item.mine{border-color:hsl(42 78% 58% / .4);background:hsl(42 78% 58% / .08)}
+.log-item .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.log-item .name{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+.log-item .name .you-tag{font-size:9px;font-weight:700;background:var(--primary);color:var(--primary-fg);padding:2px 6px;border-radius:6px;text-transform:uppercase;letter-spacing:.05em}
+.log-item .time{font-size:10px;color:var(--muted-fg)}
+.log-item .msg{font-size:12px;color:var(--muted-fg);margin-top:3px;font-style:italic}
+.log-item .amt{margin-top:4px;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:14px;color:var(--primary);font-variant-numeric:tabular-nums;font-weight:600}
+
+/* ============ HISTORY ============ */
+.history-list{padding:8px 0}
+.history-item{
+  display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;
+  padding:14px 24px;border-bottom:1px solid hsl(36 22% 20% / .4);
+  animation:fade-in .35s var(--ease) both;
+}
+.history-item:last-child{border-bottom:none}
+.history-item .h-icon{
+  width:42px;height:42px;border-radius:12px;
+  background:var(--gradient-gold-soft);border:1px solid hsl(42 78% 58% / .25);
+  color:var(--primary);display:flex;align-items:center;justify-content:center;
+}
+.history-item .h-icon svg{width:20px;height:20px}
+.history-item .h-name{font-family:'Playfair Display',serif;font-size:15px;font-weight:600;line-height:1.3}
+.history-item .h-meta{font-size:11px;color:var(--muted-fg);margin-top:3px;display:flex;flex-wrap:wrap;gap:10px}
+.history-item .h-meta .winner{color:var(--primary);font-weight:600}
+.history-item .h-price{
+  font-family:'Playfair Display',serif;font-weight:700;font-size:18px;
+  background:var(--gradient-gold);-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  white-space:nowrap;
+}
+.history-item .h-price-l{font-size:9px;text-transform:uppercase;letter-spacing:.15em;color:var(--muted-fg);text-align:right;font-family:'Inter',sans-serif;font-weight:500;-webkit-text-fill-color:var(--muted-fg);background:none}
+
+/* ============ MODAL ============ */
+.modal-bg{position:fixed;inset:0;background:hsl(0 0% 0% / .7);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:50;padding:20px;animation:fade-in .25s var(--ease)}
+.modal-bg.show{display:flex}
+.modal{
+  background:var(--card);border:1px solid var(--border);border-radius:18px;
+  padding:28px;width:100%;max-width:440px;box-shadow:var(--shadow-elegant);
+  animation:scale-in .3s var(--ease);
+}
+.modal h3{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;margin-bottom:20px}
+.modal-fields{display:flex;flex-direction:column;gap:14px}
+.preview-price{margin-top:6px;font-size:14px;color:var(--primary);font-weight:600;min-height:20px}
+
+/* ============ WINNER MODAL (BIG) ============ */
+.winner-modal-bg{
+  position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;padding:20px;
+  background:radial-gradient(ellipse at center, hsl(42 78% 58% / .25), hsl(0 0% 0% / .85) 60%);
+  backdrop-filter:blur(8px);
+  animation:fade-in .4s var(--ease);
+}
+.winner-modal-bg.show{display:flex}
+.winner-modal{
+  position:relative;width:100%;max-width:520px;text-align:center;
+  padding:48px 32px 32px;border-radius:24px;
+  background:var(--gradient-surface);border:1px solid hsl(42 78% 58% / .4);
+  box-shadow:var(--shadow-gold-xl), var(--shadow-elegant);
+  animation:winner-in .8s var(--ease);
+  overflow:hidden;
+}
+.winner-modal::before{
+  content:'';position:absolute;inset:0;border-radius:24px;padding:1px;
+  background:linear-gradient(135deg, hsl(45 95% 70%), transparent 40%, transparent 60%, hsl(42 78% 58%));
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;
+  pointer-events:none;
+}
+.winner-modal::after{
+  content:'';position:absolute;inset:-50%;
+  background:conic-gradient(from 0deg, transparent, hsl(42 78% 58% / .15), transparent 60%);
+  animation:spin-slow 8s linear infinite;pointer-events:none;z-index:0;
+}
+.winner-modal > *{position:relative;z-index:1}
+.winner-trophy{
+  margin:0 auto 18px;width:96px;height:96px;border-radius:50%;
+  background:var(--gradient-gold);display:flex;align-items:center;justify-content:center;
+  color:var(--primary-fg);box-shadow:var(--shadow-gold-xl);
+  animation:trophy-bounce 1.4s var(--ease) infinite;
+}
+.winner-trophy svg{width:52px;height:52px}
+.winner-modal .badge-top{
+  display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.35em;
+  color:var(--primary);padding:4px 14px;border:1px solid hsl(42 78% 58% / .4);border-radius:999px;
+  background:hsl(42 78% 58% / .1);margin-bottom:16px;
+}
+.winner-modal h2{
+  font-family:'Playfair Display',serif;font-size:34px;font-weight:800;line-height:1.1;
+}
+.winner-modal h2 .gold{background:var(--gradient-gold);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.winner-modal .item-name{
+  margin-top:14px;font-size:13px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.15em;
+}
+.winner-modal .item-name b{color:var(--fg);font-weight:600;text-transform:none;letter-spacing:0;font-size:16px;display:block;margin-top:4px;font-family:'Playfair Display',serif}
+.winner-modal .winner-name{
+  margin-top:24px;padding:18px;border-radius:14px;
+  background:hsl(28 20% 10% / .6);border:1px solid hsl(42 78% 58% / .25);
+}
+.winner-modal .winner-name .l{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.25em;color:var(--muted-fg)}
+.winner-modal .winner-name .n{margin-top:6px;font-family:'Playfair Display',serif;font-size:26px;font-weight:700}
+.winner-modal .winner-name .p{
+  margin-top:8px;font-family:'Playfair Display',serif;font-size:32px;font-weight:800;
+  background:var(--gradient-gold);-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.winner-modal .actions{margin-top:28px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.winner-modal .actions .btn{flex:1;min-width:140px}
+
+/* confetti dots */
+.confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden;border-radius:24px;z-index:0}
+.confetti span{
+  position:absolute;width:8px;height:8px;border-radius:2px;
+  background:var(--primary);opacity:0;
+  animation:confetti-fall 2.4s var(--ease) infinite;
+}
+
+/* ============ TOAST ============ */
+.toasts{position:fixed;top:20px;right:20px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:340px}
+.toast{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:12px 16px;box-shadow:var(--shadow-elegant);
+  display:flex;gap:10px;align-items:flex-start;
+  animation:slide-in .35s var(--ease);
+}
+.toast.success{border-left:3px solid var(--success)}
+.toast.error{border-left:3px solid var(--destructive)}
+.toast.gold{border-left:3px solid var(--primary)}
+.toast .t{font-size:13px;font-weight:600}
+.toast .m{font-size:12px;color:var(--muted-fg);margin-top:2px}
+
+/* ============ ANIMATIONS ============ */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes pulse-gold{0%,100%{box-shadow:0 0 0 0 hsl(42 78% 58% / .5)}50%{box-shadow:0 0 0 14px hsl(42 78% 58% / 0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes spin-slow{to{transform:rotate(360deg)}}
+@keyframes shimmer{100%{transform:translateX(100%)}}
+@keyframes fade-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes scale-in{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+@keyframes slide-up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slide-in{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes price-pop{0%{transform:scale(1)}30%{transform:scale(1.08);filter:drop-shadow(0 8px 32px hsl(42 78% 58% / .8))}100%{transform:scale(1)}}
+@keyframes winner-in{
+  0%{opacity:0;transform:scale(.6) rotate(-8deg)}
+  60%{opacity:1;transform:scale(1.04) rotate(2deg)}
+  100%{opacity:1;transform:scale(1) rotate(0)}
+}
+@keyframes trophy-bounce{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-8px) scale(1.05)}}
+@keyframes confetti-fall{
+  0%{opacity:0;transform:translateY(-30px) rotate(0)}
+  10%{opacity:1}
+  100%{opacity:0;transform:translateY(420px) rotate(720deg)}
+}
+.spinning{animation:spin 1s linear infinite}
+.hidden{display:none !important}
+</style>
+</head>
+<body>
+
+<div class="toasts" id="toasts"></div>
+
+<!-- ============ HEADER ============ -->
+<header class="header">
+  <div class="container header-inner">
+    <div class="brand">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 12.5-8 8a2.119 2.119 0 1 1-3-3l8-8"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/></svg>
+        <svg class="spark" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.5 4.5L18 8l-4.5 1.5L12 14l-1.5-4.5L6 8l4.5-1.5z"/></svg>
+      </div>
+      <div>
+        <h1><span class="text-gradient-gold">Balai Lelang</span> <span class="e">Eksekutif</span></h1>
+        <p>Live · Real-Time Bidding</p>
+      </div>
+    </div>
+    <div class="user-chip hidden" id="userChip">
+      <div class="user-info">
+        <div class="n" id="userName"></div>
+        <div class="i" id="userId"></div>
+      </div>
+      <div class="avatar" id="userAvatar"></div>
+      <button class="btn-logout" id="btnLogout">Keluar</button>
+    </div>
+  </div>
+</header>
+
+<!-- ============ REGISTER VIEW ============ -->
+<section id="viewRegister">
+  <div class="container register-wrap">
+    <div class="register">
+      <div class="register-card">
+        <div class="register-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 12.5-8 8a2.119 2.119 0 1 1-3-3l8-8"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/></svg>
+        </div>
+        <h2><span class="text-gradient-gold">Selamat Datang</span></h2>
+        <p class="sub">Daftarkan nama Anda untuk masuk ke ruang lelang eksklusif.</p>
+        <form id="formRegister">
+          <div>
+            <label class="label">Nama Peserta</label>
+            <input type="text" class="input" id="inputName" placeholder="Contoh: Bapak Wijaya" autofocus required>
+          </div>
+          <button type="submit" class="btn btn-gold" style="height:48px">
+            Masuk Balai Lelang
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </form>
+        <p class="footer-note">Premium · Aman · Real-Time</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ APP VIEW ============ -->
+<section id="viewApp" class="hidden">
+  <div class="container" style="padding-top:32px;padding-bottom:48px">
+
+    <!-- HERO -->
+    <div class="hero">
+      <div>
+        <div class="tag">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.5 4.5L18 8l-4.5 1.5L12 14l-1.5-4.5L6 8l4.5-1.5z"/></svg>
+          Sesi Lelang Aktif
+        </div>
+        <h2>Selamat datang kembali, <span class="text-gradient-gold" id="heroName"></span></h2>
+        <p>Pilih menu di bawah untuk melihat peserta atau bergabung ke ruang lelang.</p>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="v" id="statParticipants">—</div><div class="l">Peserta</div></div>
+        <div class="stat"><div class="v" id="statRooms">—</div><div class="l">Ruangan</div></div>
+        <div class="stat"><div class="v" id="statHistory">—</div><div class="l">Riwayat</div></div>
+      </div>
+    </div>
+
+    <!-- MENU TILES -->
+    <div class="menu-grid" id="menuTiles">
+      <button class="tile" data-view="participants">
+        <div class="tile-head">
+          <div class="tile-icon gold">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <span class="tile-badge" id="badgeP">0</span>
+        </div>
+        <h3>Daftar Peserta</h3>
+        <div class="d">Lihat semua peserta yang sedang online di balai lelang.</div>
+        <div class="open">Buka →</div>
+      </button>
+
+      <button class="tile" data-view="rooms">
+        <div class="tile-head">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4h3a2 2 0 0 1 2 2v14"/><path d="M2 20h3"/><path d="M13 20h9"/><path d="M10 12v.01"/><path d="M13 4.562v16.157a1 1 0 0 1-1.242.97L5.762 20.2a2 2 0 0 1-1.524-1.943V5.343a2 2 0 0 1 1.443-1.92L11.443 2.06A1 1 0 0 1 13 3.5z"/></svg>
+          </div>
+          <span class="tile-badge" id="badgeR">0</span>
+        </div>
+        <h3>Masuk Ruangan</h3>
+        <div class="d">Pilih ruang lelang aktif dan ikuti penawaran live.</div>
+        <div class="open">Buka →</div>
+      </button>
+
+      <button class="tile" data-view="rooms" id="tileCreate">
+        <div class="tile-head">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 12.5-8 8a2.119 2.119 0 1 1-3-3l8-8"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/></svg>
+          </div>
+        </div>
+        <h3>Buat Lelang</h3>
+        <div class="d">Tambahkan item baru untuk dilelangkan kepada peserta.</div>
+        <div class="open">Buka →</div>
+      </button>
+
+      <button class="tile" data-view="history">
+        <div class="tile-head">
+          <div class="tile-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+          </div>
+          <span class="tile-badge" id="badgeH">0</span>
+        </div>
+        <h3>Riwayat Lelang</h3>
+        <div class="d">Catatan barang, pemenang, dan harga akhir lelang sebelumnya.</div>
+        <div class="open">Buka →</div>
+      </button>
+    </div>
+
+    <!-- PARTICIPANTS PANEL -->
+    <div id="panelParticipants" class="hidden">
+      <div class="panel">
+        <div class="panel-head">
+          <div class="left">
+            <div class="panel-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div>
+              <div class="panel-title">Daftar Peserta</div>
+              <div class="panel-sub"><span class="dot-online"></span>Terakhir diperbarui: <span id="lastRefresh">Belum dimuat</span></div>
+            </div>
+          </div>
+          <button class="btn btn-outline" id="btnRefresh">
+            <svg id="refreshIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+            <span id="refreshLabel">Refresh</span>
+          </button>
+        </div>
+        <div id="participantsList"></div>
+        <div class="panel-foot">Total <b id="totalParticipants">0</b> peserta online</div>
+      </div>
+    </div>
+
+    <!-- ROOMS PANEL -->
+    <div id="panelRooms" class="hidden">
+      <div class="panel">
+        <div class="panel-head">
+          <div class="left">
+            <div class="panel-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4h3a2 2 0 0 1 2 2v14"/><path d="M2 20h3"/><path d="M13 20h9"/><path d="M13 4.562v16.157a1 1 0 0 1-1.242.97L5.762 20.2a2 2 0 0 1-1.524-1.943V5.343a2 2 0 0 1 1.443-1.92L11.443 2.06A1 1 0 0 1 13 3.5z"/></svg>
+            </div>
+            <div>
+              <div class="panel-title">Ruang Lelang</div>
+              <div class="panel-sub" style="color:var(--muted-fg)">Pilih ruangan atau buat lelang baru</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline btn-sm" id="btnRefreshRooms" title="Refresh">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+            </button>
+            <button class="btn btn-gold btn-sm" id="btnOpenCreate">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+              Buat Ruangan
+            </button>
+          </div>
+        </div>
+        <div id="roomsList" class="rooms-grid"></div>
+      </div>
+    </div>
+
+    <!-- HISTORY PANEL -->
+    <div id="panelHistory" class="hidden">
+      <div class="panel">
+        <div class="panel-head">
+          <div class="left">
+            <div class="panel-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+            </div>
+            <div>
+              <div class="panel-title">Riwayat Lelang</div>
+              <div class="panel-sub" style="color:var(--muted-fg)">Daftar barang, pemenang & harga akhir</div>
+            </div>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="btnClearHistory">Hapus Semua</button>
+        </div>
+        <div id="historyList" class="history-list"></div>
+        <div class="panel-foot">Total <b id="totalHistory">0</b> lelang tercatat di perangkat ini</div>
+      </div>
+    </div>
+
+    <!-- BIDDING ROOM -->
+    <div id="panelBidding" class="hidden">
+      <button class="back-btn" id="btnBack">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+        Kembali ke menu
+      </button>
+      <div class="bid-layout">
+        <div class="panel bid-main">
+          <!-- SPOTLIGHT: nama item & harga -->
+          <div class="bid-spotlight">
+            <div class="id-line">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg>
+              <span id="bidRoomId">—</span> · LIVE
+            </div>
+            <h2 id="bidItemName">—</h2>
+            <div class="price-block">
+              <div class="price-label">
+                <span class="pulse-dot"></span>Harga Tertinggi Saat Ini
+              </div>
+              <div class="price-main" id="bidCurrentPrice">Rp 0</div>
+              <div class="price-meta">
+                <span>Harga Awal: <b id="bidStartPrice">Rp 0</b></span>
+                <span>Kenaikan: <b class="up" id="bidIncrement">+Rp 0</b></span>
+                <span>Penawar: <b id="bidLeader">Belum ada</b></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="bid-stats">
+            <div class="bid-stat timer" id="bidTimerStat">
+              <div class="l">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Sisa Waktu
+              </div>
+              <div class="v" id="bidTimer">—</div>
+            </div>
+            <div class="bid-stat">
+              <div class="l">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                Status
+              </div>
+              <div class="v" id="bidStatus">Aktif</div>
+            </div>
+          </div>
+
+          <div id="winnerBox" class="hidden"></div>
+
+          <div class="bid-form">
+            <label class="label" id="bidLabel">Tawar Anda</label>
+            <div class="row">
+              <input type="text" inputmode="numeric" class="input mono" id="bidAmount" placeholder="0">
+              <button class="btn btn-gold" id="btnPlaceBid">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                Bid
+              </button>
+            </div>
+            <div class="label" style="margin-top:14px;margin-bottom:6px">Tawar Cepat — Klik untuk langsung menawar</div>
+            <div class="quick-bids" id="quickBids"></div>
+          </div>
+        </div>
+
+        <div class="panel bid-log">
+          <div class="head">
+            <h3>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 12.5-8 8a2.119 2.119 0 1 1-3-3l8-8"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/></svg>
+              Riwayat Penawaran
+            </h3>
+            <p>Anda menawar sebagai: <span id="bidAsName"></span></p>
+          </div>
+          <div class="list" id="bidLogList"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============ MODAL: CREATE ROOM ============ -->
+<div class="modal-bg" id="modalCreate">
+  <div class="modal">
+    <h3><span class="text-gradient-gold">Buat Ruang Lelang</span></h3>
+    <form id="formCreate" class="modal-fields">
+      <div>
+        <label class="label">Nama Item</label>
+        <input type="text" class="input" id="inputItem" placeholder="Lukisan, jam tangan, motor antik..." required>
+      </div>
+      <div>
+        <label class="label">Harga Awal (Rp)</label>
+        <input type="text" inputmode="numeric" class="input" id="inputPrice" placeholder="50000000" required>
+        <div class="preview-price" id="previewPrice"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button type="button" class="btn btn-ghost" id="cancelCreate" style="flex:1">Batal</button>
+        <button type="submit" class="btn btn-gold" style="flex:2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 12.5-8 8a2.119 2.119 0 1 1-3-3l8-8"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/></svg>
+          Buka Lelang
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ WINNER MODAL ============ -->
+<div class="winner-modal-bg" id="winnerModal">
+  <div class="winner-modal">
+    <div class="confetti" id="confetti"></div>
+    <div class="winner-trophy">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+    </div>
+    <div class="badge-top">🏆 Lelang Selesai</div>
+    <h2>Selamat Kepada <span class="gold" id="winModalWinner">—</span>!</h2>
+    <div class="item-name">Pemenang Lelang Untuk<b id="winModalItem">—</b></div>
+    <div class="winner-name">
+      <div class="l">Harga Akhir Penawaran</div>
+      <div class="p" id="winModalPrice">Rp 0</div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-ghost btn-lg" id="winModalHistory">Lihat Riwayat</button>
+      <button class="btn btn-gold btn-lg" id="winModalBack">Kembali ke Menu</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  STATE
+// ============================================================
+const socket = io();
+let me = null;
+let participants = [];
+let rooms = [];
+let activeRoom = null;
+let bidLogs = [];
+let currentView = 'menu';
+let timerInterval = null;
+let roomDeadline = null;
+const ROOM_DURATION_MS = 60_000;
+let history = loadHistory();
+
+// ============================================================
+//  HELPERS
+// ============================================================
+const $ = (id) => document.getElementById(id);
+const fmtRp = (n) => new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(n||0);
+const nowTime = () => new Date().toLocaleTimeString('id-ID',{hour12:false});
+const fmtDate = (ts) => new Date(ts).toLocaleString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+// Bid messages — variasi pesan ala lelang sungguhan
+const BID_MESSAGES = [
+  "menawar dengan berani",
+  "mengangkat tawaran",
+  "menambah penawaran",
+  "menaikkan harga",
+  "ikut bersaing dalam tawaran",
+  "menyodorkan tawaran baru",
+  "tidak mau kalah, ikut menawar",
+  "menggebrak meja lelang",
+  "mengambil alih posisi tertinggi",
+  "memberikan penawaran tegas",
+];
+const pickMsg = () => BID_MESSAGES[Math.floor(Math.random()*BID_MESSAGES.length)];
+
+function toast({title, message, type='gold'}) {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<div><div class="t">${escapeHtml(title)}</div>${message?`<div class="m">${escapeHtml(message)}</div>`:''}</div>`;
+  $('toasts').appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translateX(20px)'; el.style.transition='all .3s'; setTimeout(()=>el.remove(),300); }, 3500);
+}
+
+function setView(view) {
+  currentView = view;
+  $('panelParticipants').classList.toggle('hidden', view!=='participants');
+  $('panelRooms').classList.toggle('hidden', view!=='rooms');
+  $('panelBidding').classList.toggle('hidden', view!=='bidding');
+  $('panelHistory').classList.toggle('hidden', view!=='history');
+  document.querySelectorAll('.tile').forEach(t => t.classList.toggle('active', t.dataset.view===view));
+  $('menuTiles').classList.toggle('hidden', view==='bidding');
+  document.querySelector('.hero').classList.toggle('hidden', view==='bidding');
+}
+
+// ============================================================
+//  HISTORY (localStorage)
+// ============================================================
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem('lelang_history')||'[]'); }
+  catch { return []; }
+}
+function saveHistoryEntry(entry) {
+  history.unshift(entry);
+  if (history.length > 100) history = history.slice(0, 100);
+  localStorage.setItem('lelang_history', JSON.stringify(history));
+  updateHistoryBadge();
+}
+function updateHistoryBadge() {
+  $('badgeH').textContent = history.length;
+  $('statHistory').textContent = history.length || '—';
+}
+function renderHistory() {
+  const list = $('historyList');
+  $('totalHistory').textContent = history.length;
+  if (history.length===0) {
+    list.innerHTML = '<div class="empty">Belum ada riwayat lelang. Selesaikan lelang pertama Anda untuk melihat catatannya di sini.</div>';
+    return;
+  }
+  list.innerHTML = history.map((h, i) => `
+    <div class="history-item" style="animation-delay:${i*40}ms">
+      <div class="h-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+      </div>
+      <div style="min-width:0">
+        <div class="h-name">${escapeHtml(h.item_name)}</div>
+        <div class="h-meta">
+          <span>🏆 <span class="winner">${escapeHtml(h.winner||'Tanpa pemenang')}</span></span>
+          <span>📅 ${fmtDate(h.ended_at)}</span>
+          <span>🪙 Awal: ${fmtRp(h.start_price)}</span>
+        </div>
+      </div>
+      <div>
+        <div class="h-price-l">Harga Akhir</div>
+        <div class="h-price">${fmtRp(h.final_price)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+$('btnClearHistory').addEventListener('click', () => {
+  if (history.length===0) return;
+  if (!confirm('Hapus semua riwayat lelang dari perangkat ini?')) return;
+  history = [];
+  localStorage.removeItem('lelang_history');
+  updateHistoryBadge();
+  renderHistory();
+  toast({title:'Riwayat dikosongkan'});
+});
+
+// ============================================================
+//  REGISTER
+// ============================================================
+$('formRegister').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const name = $('inputName').value.trim();
+  if (!name) return;
+
+  // Cek duplikat nama di daftar peserta online (case-insensitive)
+  const dupLocal = participants.some(p => (p.name||'').toLowerCase() === name.toLowerCase());
+  if (dupLocal) {
+    toast({title:'Nama sudah dipakai', message:`"${name}" sedang aktif. Gunakan nama lain.`, type:'error'});
+    return;
+  }
+
+  // Refresh dulu daftar online untuk validasi terkini, lalu cek lagi
+  socket.emit('get_online_users', null, (uRes) => {
+    const list = (uRes && uRes.success ? (uRes.users || []) : []);
+    const dup = list.some(p => (p.name||'').toLowerCase() === name.toLowerCase());
+    if (dup) {
+      toast({title:'Nama sudah terdaftar', message:`"${name}" sudah dipakai peserta lain. Silakan pilih nama lain.`, type:'error'});
+      return;
+    }
+    doRegister(name);
+  });
+});
+
+function doRegister(name) {
+  socket.emit('register_user', { name }, (res) => {
+    if (!res || !res.success) {
+      const msg = res?.message || '';
+      if (/sudah|exist|duplicate|taken/i.test(msg)) {
+        toast({title:'Nama sudah terdaftar', message:`"${name}" sudah dipakai. Pilih nama lain.`, type:'error'});
+      } else {
+        toast({title:'Gagal mendaftar', message: msg||'Coba lagi', type:'error'});
+      }
+      return;
+    }
+    me = { user_id: res.user_id, name: res.name };
+    $('viewRegister').classList.add('hidden');
+    $('viewApp').classList.remove('hidden');
+    $('userChip').classList.remove('hidden');
+    $('userName').textContent = me.name;
+    $('userId').textContent = me.user_id;
+    $('userAvatar').textContent = me.name[0].toUpperCase();
+    $('heroName').textContent = me.name;
+    $('bidAsName').textContent = me.name;
+    toast({title:`Selamat datang, ${me.name}`, message:'Anda terdaftar sebagai peserta.', type:'success'});
+    refreshParticipants();
+    refreshRooms();
+    updateHistoryBadge();
+  });
+}
+
+$('btnLogout').addEventListener('click', ()=>{
+  if (me) socket.emit('logout_user', { user_id: me.user_id });
+  me = null;
+  $('viewApp').classList.add('hidden');
+  $('viewRegister').classList.remove('hidden');
+  $('userChip').classList.add('hidden');
+  $('inputName').value = '';
+  toast({title:'Anda telah keluar.'});
+});
+
+// ============================================================
+//  MENU TILE NAVIGATION
+// ============================================================
+document.querySelectorAll('.tile').forEach(tile => {
+  tile.addEventListener('click', () => {
+    const v = tile.dataset.view;
+    setView(v);
+    if (v==='participants') refreshParticipants();
+    if (v==='rooms') refreshRooms();
+    if (v==='history') renderHistory();
+    if (tile.id==='tileCreate') openCreateModal();
+  });
+});
+
+// ============================================================
+//  PARTICIPANTS — refresh manual + animasi
+// ============================================================
+$('btnRefresh').addEventListener('click', refreshParticipants);
+
+async function refreshParticipants() {
+  const btn = $('btnRefresh');
+  const icon = $('refreshIcon');
+  const label = $('refreshLabel');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  icon.classList.add('spinning');
+  label.textContent = 'Memuat...';
+
+  const list = $('participantsList');
+  list.innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div>';
+
+  const minDelay = new Promise(r => setTimeout(r, 700));
+  const fetchData = new Promise((resolve) => {
+    socket.emit('get_online_users', null, (res) => {
+      resolve(res && res.success ? (res.users || []) : []);
+    });
+    setTimeout(()=>resolve([]), 5000);
+  });
+
+  const [users] = await Promise.all([fetchData, minDelay]);
+  participants = users;
+  renderParticipants();
+  $('lastRefresh').textContent = nowTime();
+  $('badgeP').textContent = participants.length;
+  $('statParticipants').textContent = participants.length || '—';
+  $('totalParticipants').textContent = participants.length;
+
+  btn.disabled = false;
+  icon.classList.remove('spinning');
+  label.textContent = 'Refresh';
+}
+
+function renderParticipants() {
+  const list = $('participantsList');
+  if (participants.length===0) {
+    list.innerHTML = '<div class="empty">Belum ada peserta online. Klik refresh untuk memperbarui.</div>';
+    return;
+  }
+  list.innerHTML = participants.map((p, i) => {
+    const isMe = me && p.user_id===me.user_id;
+    return `
+      <div class="participant" style="animation-delay:${i*40}ms">
+        <div class="p-left">
+          <div class="p-avatar ${isMe?'me':''}">${(p.name||'?')[0].toUpperCase()}<span class="live-dot"></span></div>
+          <div>
+            <div class="p-name">${escapeHtml(p.name)}${isMe?'<span class="tag-me">Anda</span>':''}</div>
+            <div class="p-id">${p.user_id}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ============================================================
+//  ROOMS
+// ============================================================
+$('btnRefreshRooms').addEventListener('click', refreshRooms);
+$('btnOpenCreate').addEventListener('click', openCreateModal);
+
+function refreshRooms() {
+  socket.emit('get_available_rooms', null, (res) => {
+    const incoming = (res && res.success) ? (res.rooms || []) : [];
+
+    // Normalisasi data tiap room dari server
+    const normalized = incoming.map(r => {
+      const start = Number(r.start_price) || Number(r.starting_price) || Number(r.initial_price) || 0;
+      const current = Number(r.current_price) || Number(r.current_highest_price) || start;
+      return {
+        ...r,
+        start_price: start || current, // fallback bila server tidak kirim start_price
+        current_price: current,
+        is_closed: !!r.is_closed,
+      };
+    });
+
+    // Gabungkan dengan cache lokal: simpan room yang hilang dari server (yg sudah closed)
+    const incomingIds = new Set(normalized.map(r => r.room_id));
+    const localClosed = (rooms || []).filter(r => !incomingIds.has(r.room_id));
+    // Pertahankan start_price asli dari cache jika server hilangkan
+    const merged = normalized.map(nr => {
+      const old = (rooms || []).find(o => o.room_id === nr.room_id);
+      if (old && (!nr.start_price || nr.start_price === nr.current_price && old.start_price)) {
+        return { ...nr, start_price: old.start_price || nr.start_price };
+      }
+      return nr;
+    }).concat(localClosed);
+
+    rooms = merged;
+    renderRooms();
+    const open = rooms.filter(r=>!r.is_closed).length;
+    $('badgeR').textContent = open;
+    $('statRooms').textContent = open || '—';
+  });
+}
+
+function renderRooms() {
+  const list = $('roomsList');
+  if (rooms.length===0) {
+    list.innerHTML = '<div class="empty" style="grid-column:1/-1">Belum ada ruang lelang aktif. Buat yang pertama!</div>';
+    return;
+  }
+  list.innerHTML = rooms.map((r, i) => `
+    <article class="room ${r.is_closed?'closed':''}" style="animation-delay:${i*60}ms">
+      <div class="room-head">
+        <div style="min-width:0;flex:1">
+          <div class="room-id">${r.room_id}</div>
+          <div class="room-name">${escapeHtml(r.item_name)}</div>
+        </div>
+        ${r.is_closed
+          ? '<span class="badge badge-closed">🔒 Tutup</span>'
+          : '<span class="badge badge-live"><span class="pulse-dot"></span>Live</span>'}
+      </div>
+      <div class="room-stats">
+        <div class="room-stat">
+          <div class="l">Harga Awal</div>
+          <div class="v">${fmtRp(r.start_price)}</div>
+        </div>
+        <div class="room-stat price">
+          <div class="l">Saat Ini</div>
+          <div class="v">${fmtRp(r.current_price)}</div>
+        </div>
+      </div>
+      <button class="btn" data-join="${r.room_id}" ${r.is_closed?'disabled':''}>
+        ${r.is_closed?'Lelang Selesai':'Masuk Bidding'}
+      </button>
+    </article>
+  `).join('');
+
+  list.querySelectorAll('[data-join]').forEach(btn => {
+    btn.addEventListener('click', () => joinRoom(btn.dataset.join));
+  });
+}
+
+// ============================================================
+//  CREATE ROOM MODAL
+// ============================================================
+function openCreateModal(){ $('modalCreate').classList.add('show'); }
+function closeCreateModal(){ $('modalCreate').classList.remove('show'); $('formCreate').reset(); $('previewPrice').textContent=''; }
+
+$('cancelCreate').addEventListener('click', closeCreateModal);
+$('modalCreate').addEventListener('click', (e)=>{ if(e.target.id==='modalCreate') closeCreateModal(); });
+$('inputPrice').addEventListener('input', (e)=>{
+  e.target.value = e.target.value.replace(/\D/g,'');
+  $('previewPrice').textContent = e.target.value ? fmtRp(parseInt(e.target.value,10)) : '';
+});
+
+$('formCreate').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const item_name = $('inputItem').value.trim();
+  const start_price = parseInt($('inputPrice').value.replace(/\D/g,''),10);
+  if (!item_name || !start_price) return;
+  socket.emit('create_room', { item_name, start_price }, (res) => {
+    if (!res || !res.success) {
+      toast({title:'Gagal membuat ruang', message:res?.message||'Coba lagi', type:'error'});
+      return;
+    }
+    toast({title:'Ruang lelang dibuat', message:`${res.room_id} · ${res.item_name}`, type:'success'});
+    closeCreateModal();
+    refreshRooms();
+  });
+});
+
+// ============================================================
+//  BIDDING ROOM
+// ============================================================
+function joinRoom(room_id) {
+  const r = rooms.find(x => x.room_id===room_id);
+  if (!r) return;
+  if (r.is_closed) {
+    toast({title:'Lelang sudah selesai', message:'Ruangan ini sudah ditutup.', type:'error'});
+    return;
+  }
+  // Normalisasi & simpan start_price asli — jangan tertimpa current_price
+  const startPrice = Number(r.start_price) || Number(r.starting_price) || Number(r.initial_price) || Number(r.current_price) || 0;
+  const currentPrice = Number(r.current_price) || Number(r.current_highest_price) || startPrice;
+  activeRoom = {
+    room_id: r.room_id,
+    item_name: r.item_name,
+    start_price: startPrice,
+    current_price: currentPrice,
+    highest_bidder: r.highest_bidder || null,
+    is_closed: false,
+  };
+  bidLogs = [{ system:true, message:`🎩 Anda memasuki ruang lelang ${room_id}. Selamat menawar!`, time: nowTime() }];
+  setView('bidding');
+  renderBidding(true);
+  renderBidLogs();
+  startTimer(ROOM_DURATION_MS);
+  socket.emit('join_room', { room_id, user_id: me.user_id, user_name: me.name });
+}
+
+$('btnBack').addEventListener('click', leaveRoom);
+
+function leaveRoom() {
+  socket.emit('leave_room');
+  activeRoom = null;
+  stopTimer();
+  setView('menu');
+  refreshRooms();
+}
+
+function renderBidding(initial=false) {
+  if (!activeRoom) return;
+  $('bidRoomId').textContent = activeRoom.room_id;
+  $('bidItemName').textContent = activeRoom.item_name;
+  $('bidStartPrice').textContent = fmtRp(activeRoom.start_price);
+  $('bidCurrentPrice').textContent = fmtRp(activeRoom.current_price);
+  const inc = Math.max(0, activeRoom.current_price - activeRoom.start_price);
+  $('bidIncrement').textContent = inc > 0 ? `+${fmtRp(inc)}` : 'Rp 0';
+  $('bidLeader').textContent = activeRoom.highest_bidder || 'Belum ada';
+  $('bidStatus').textContent = activeRoom.is_closed ? 'Selesai' : 'Aktif';
+
+  // Quick bids — kenaikan persen, langsung trigger bid
+  const base = activeRoom.current_price || activeRoom.start_price;
+  const percents = [5, 10, 15, 25];
+  const qb = $('quickBids');
+  qb.innerHTML = '';
+  percents.forEach(pct => {
+    const newPrice = Math.round(base * (1 + pct/100) / 100000) * 100000; // bulatkan 100rb
+    const b = document.createElement('button');
+    b.className = 'qb';
+    b.disabled = !!activeRoom.is_closed;
+    b.innerHTML = `
+      <span class="pct">+${pct}%</span>
+      <span class="amt">${fmtRp(newPrice)}</span>
+      <span class="note">Naik ${fmtRp(newPrice - base)}</span>
+    `;
+    b.onclick = () => placeBid(newPrice);
+    qb.appendChild(b);
+  });
+
+  const minBid = base + Math.max(100_000, Math.round(base * 0.02));
+  $('bidLabel').textContent = `Tawar Manual · Minimal ${fmtRp(minBid)}`;
+  $('bidAmount').placeholder = String(minBid);
+  $('bidAmount').disabled = !!activeRoom.is_closed;
+  $('btnPlaceBid').disabled = !!activeRoom.is_closed;
+}
+
+function renderBidLogs() {
+  const list = $('bidLogList');
+  if (bidLogs.length===0) {
+    list.innerHTML = '<div class="empty">Belum ada penawaran. Jadilah yang pertama!</div>';
+    return;
+  }
+  list.innerHTML = bidLogs.map(l => {
+    if (l.system) {
+      return `<div class="log-item system">${escapeHtml(l.message)}</div>`;
+    }
+    const isMe = me && l.user_name === me.name;
+    return `<div class="log-item ${isMe?'mine':''}">
+      <div class="row">
+        <div class="name">
+          ${escapeHtml(l.user_name)}
+          ${isMe?'<span class="you-tag">Anda</span>':''}
+        </div>
+        <div class="time">${l.time}</div>
+      </div>
+      <div class="msg">${escapeHtml(l.message||'')}</div>
+      <div class="amt">${fmtRp(l.amount)}</div>
+    </div>`;
+  }).join('');
+  list.scrollTop = list.scrollHeight;
+}
+
+$('btnPlaceBid').addEventListener('click', () => placeBid());
+$('bidAmount').addEventListener('keydown', (e)=>{ if(e.key==='Enter') placeBid(); });
+$('bidAmount').addEventListener('input', (e)=>{ e.target.value = e.target.value.replace(/\D/g,''); });
+
+function placeBid(forceAmount) {
+  if (!activeRoom || activeRoom.is_closed) return;
+  const amt = forceAmount ?? parseInt(($('bidAmount').value||'').replace(/\D/g,''),10);
+  if (!amt || amt <= activeRoom.current_price) {
+    toast({title:'Tawaran tidak valid', message:`Harus lebih dari ${fmtRp(activeRoom.current_price)}`, type:'error'});
+    return;
+  }
+  socket.emit('place_bid', {
+    room_id: activeRoom.room_id,
+    user_id: me.user_id,
+    user_name: me.name,
+    bid_amount: amt,
+  });
+  $('bidAmount').value = '';
+}
+
+// ============================================================
+//  TIMER
+// ============================================================
+function startTimer(durationMs) {
+  stopTimer();
+  roomDeadline = Date.now() + durationMs;
+  updateTimer();
+  timerInterval = setInterval(updateTimer, 1000);
+}
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval=null; }
+  roomDeadline = null;
+}
+function updateTimer() {
+  if (!roomDeadline) return;
+  const remain = Math.max(0, roomDeadline - Date.now());
+  const sec = Math.floor(remain/1000);
+  const mm = String(Math.floor(sec/60)).padStart(2,'0');
+  const ss = String(sec%60).padStart(2,'0');
+  $('bidTimer').textContent = `${mm}:${ss}`;
+  $('bidTimerStat').classList.toggle('urgent', sec<=10 && sec>0);
+  if (remain<=0 && activeRoom && !activeRoom.is_closed) {
+    $('bidTimer').textContent = '00:00';
+    // Visual fallback close (jika server tidak mengirim is_closed)
+    closeAuctionLocally();
+  }
+}
+
+function closeAuctionLocally() {
+  if (!activeRoom || activeRoom.is_closed) return;
+  activeRoom.is_closed = true;
+  stopTimer();
+  bidLogs.push({ system:true, message:`⏰ Waktu habis! Lelang ditutup.`, time: nowTime() });
+  renderBidding();
+  renderBidLogs();
+  saveAndShowWinner();
+}
+
+function saveAndShowWinner() {
+  if (!activeRoom) return;
+  const entry = {
+    room_id: activeRoom.room_id,
+    item_name: activeRoom.item_name,
+    start_price: activeRoom.start_price,
+    final_price: activeRoom.current_price,
+    winner: activeRoom.highest_bidder || null,
+    ended_at: Date.now(),
+  };
+  // Hindari duplikasi entri room yang sama
+  if (!history.some(h => h.room_id === entry.room_id)) {
+    saveHistoryEntry(entry);
+  }
+  // Tandai room di cache lokal sbg closed (supaya tidak hilang dari daftar)
+  const idx = rooms.findIndex(r => r.room_id === activeRoom.room_id);
+  if (idx >= 0) {
+    rooms[idx] = { ...rooms[idx], is_closed: true, current_price: activeRoom.current_price, highest_bidder: activeRoom.highest_bidder };
+  }
+  showWinnerModal(entry);
+}
+
+// ============================================================
+//  WINNER MODAL
+// ============================================================
+function showWinnerModal(entry) {
+  $('winModalWinner').textContent = entry.winner || 'Tidak Ada Pemenang';
+  $('winModalItem').textContent = entry.item_name;
+  $('winModalPrice').textContent = fmtRp(entry.final_price);
+  // Confetti
+  const c = $('confetti');
+  c.innerHTML = '';
+  const colors = ['hsl(45 95% 70%)', 'hsl(42 78% 58%)', 'hsl(36 65% 42%)', 'hsl(40 35% 92%)'];
+  for (let i=0;i<40;i++){
+    const s = document.createElement('span');
+    s.style.left = (Math.random()*100)+'%';
+    s.style.background = colors[i%colors.length];
+    s.style.animationDelay = (Math.random()*1.5)+'s';
+    s.style.animationDuration = (1.8 + Math.random()*1.2)+'s';
+    s.style.transform = `rotate(${Math.random()*360}deg)`;
+    c.appendChild(s);
+  }
+  $('winnerModal').classList.add('show');
+}
+function hideWinnerModal() { $('winnerModal').classList.remove('show'); }
+$('winModalBack').addEventListener('click', () => {
+  hideWinnerModal();
+  leaveRoom();
+});
+$('winModalHistory').addEventListener('click', () => {
+  hideWinnerModal();
+  socket.emit('leave_room');
+  activeRoom = null;
+  stopTimer();
+  setView('history');
+  renderHistory();
+  refreshRooms();
+});
+
+// ============================================================
+//  SOCKET LISTENERS
+// ============================================================
+socket.on('bid_update', (update) => {
+  if (!activeRoom) return;
+  const prevPrice = activeRoom.current_price;
+  const newPrice = update.current_highest_price ?? activeRoom.current_price;
+  const newBidder = update.highest_bidder || activeRoom.highest_bidder;
+
+  if (newPrice !== prevPrice) {
+    const el = $('bidCurrentPrice');
+    el.classList.remove('pop');
+    void el.offsetWidth;
+    el.classList.add('pop');
+  }
+
+  activeRoom.current_price = newPrice;
+  activeRoom.highest_bidder = newBidder;
+  activeRoom.is_closed = !!update.is_closed;
+
+  if (update.broadcast_message) {
+    bidLogs.push({ system:true, message: `📣 ${update.broadcast_message}`, time: nowTime() });
+  } else if (update.highest_bidder && newPrice !== prevPrice) {
+    bidLogs.push({
+      user_name: update.highest_bidder,
+      amount: newPrice,
+      message: pickMsg(),
+      time: nowTime(),
+    });
+  }
+
+  if (!update.is_closed) {
+    startTimer(Math.max(15_000, ROOM_DURATION_MS/2));
+  } else {
+    stopTimer();
+    $('bidTimer').textContent = '00:00';
+    bidLogs.push({ system:true, message:`🏆 Palu diketuk! ${update.highest_bidder||'Tidak ada pemenang'} memenangkan lelang ini.`, time: nowTime() });
+    saveAndShowWinner();
+  }
+
+  renderBidding();
+  renderBidLogs();
+});
+
+socket.on('bid_rejected', ({message})=>{
+  toast({title:'Bid ditolak', message, type:'error'});
+});
+socket.on('stream_error', ({message})=>{
+  toast({title:'Koneksi error', message, type:'error'});
+});
+
+socket.on('connect', ()=> console.log('[Socket] terhubung', socket.id));
+socket.on('disconnect', ()=> toast({title:'Terputus dari server', type:'error'}));
+
+// ============================================================
+//  UTIL
+// ============================================================
+function escapeHtml(s) {
+  return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
+}
+
+// init badges
+updateHistoryBadge();
+</script>
+</body>
+</html>

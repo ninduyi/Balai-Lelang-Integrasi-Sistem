@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package lelang;
+
+service UserService {
+  rpc RegisterUser (RegisterUserRequest) returns (RegisterUserResponse);
+  rpc LogoutUser (LogoutUserRequest) returns (SimpleResponse);
+  rpc GetOnlineUsers (Empty) returns (OnlineUsersResponse);
+}
+
+service RoomService {
+  rpc CreateRoom (CreateRoomRequest) returns (CreateRoomResponse);
+  rpc GetAvailableRooms (Empty) returns (AvailableRoomsResponse);
+}
+
+service BiddingService {
+  rpc JoinRoomBidding (stream BidCommand) returns (stream BidUpdate);
+}
+
+message Empty {}
+
+message SimpleResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message RegisterUserRequest {
+  string name = 1;
+}
+
+message RegisterUserResponse {
+  bool success = 1;
+  string user_id = 2;
+  string name = 3;
+  string message = 4;
+}
+
+message LogoutUserRequest {
+  string user_id = 1;
+}
+
+message UserInfo {
+  string user_id = 1;
+  string name = 2;
+}
+
+message OnlineUsersResponse {
+  bool success = 1;
+  repeated UserInfo users = 2;
+}
+
+message CreateRoomRequest {
+  string item_name = 1;
+  int32 start_price = 2;
+}
+
+message CreateRoomResponse {
+  bool success = 1;
+  string room_id = 2;
+  string item_name = 3;
+  int32 start_price = 4;
+  string message = 5;
+}
+
+message RoomInfo {
+  string room_id = 1;
+  string item_name = 2;
+  int32 current_price = 3;
+  bool is_closed = 4;
+}
+
+message AvailableRoomsResponse {
+  bool success = 1;
+  repeated RoomInfo rooms = 2;
+}
+
+message BidCommand {
+  string room_id = 1;
+  string user_id = 2;
+  string user_name = 3;
+  int32 bid_amount = 4;
+}
+
+message BidUpdate {
+  string highest_bidder = 1;
+  int32 current_highest_price = 2;
+  string broadcast_message = 3;
+  bool is_closed = 4;
+}

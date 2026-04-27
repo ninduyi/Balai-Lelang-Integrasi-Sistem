@@ -1,0 +1,16 @@
+{
+  "name": "balai-lelang-eksekutif",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node gateway.js",
+    "server": "node server.js",
+    "gateway": "node gateway.js"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.14.3",
+    "@grpc/proto-loader": "^0.8.0",
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3"
+  }
+}
